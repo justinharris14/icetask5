@@ -1,0 +1,127 @@
+package com.example.flappybirdclone
+
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import android.util.AttributeSet
+import android.view.SurfaceHolder
+import android.view.SurfaceView
+import kotlin.concurrent.thread
+import kotlin.math.min
+import kotlin.random.Random
+
+class GameView(context: Context, attrs: AttributeSet? = null) : SurfaceView(context, attrs), SurfaceHolder.Callback {
+    private val thread = GameThread(holder, this)
+    private var birdY = 500f
+    private var birdVelocity = 0f
+    private val gravity = 1.5f
+    private val birdRadius = 50f
+    private val paint = Paint()
+
+    private val towers = mutableListOf<Tower>()
+    private val towerWidth = 200f
+    private val towerGap = 400f
+    private var towerInterval = 0
+    private var score = 0
+    private var timeElapsed = 0L
+    private var startTime = System.currentTimeMillis()
+
+    init {
+        holder.addCallback(this)
+        paint.isAntiAlias = true
+    }
+
+    override fun surfaceCreated(holder: SurfaceHolder) {
+        thread.running = true
+        thread.start()
+    }
+
+    override fun surfaceDestroyed(holder: SurfaceHolder) {
+        var retry = true
+        thread.running = false
+        while (retry) {
+            try {
+                thread.join()
+                retry = false
+            } catch (e: InterruptedException) {
+            }
+        }
+    }
+
+    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
+
+    fun update() {
+        val currentTime = System.currentTimeMillis()
+        timeElapsed = (currentTime - startTime) / 1000
+
+        birdVelocity += gravity
+        birdY += birdVelocity
+
+        towerInterval++
+        if (towerInterval > 100) {
+            towers.add(Tower(width.toFloat(), height.toFloat(), towerWidth, towerGap))
+            towerInterval = 0
+        }
+
+        val iterator = towers.iterator()
+        while (iterator.hasNext()) {
+            val tower = iterator.next()
+            tower.x -= 10
+            if (tower.x + towerWidth < 0) {
+                iterator.remove()
+                score++
+            }
+        }
+    }
+
+    override fun draw(canvas: Canvas) {
+        super.draw(canvas)
+        canvas.drawColor(Color.CYAN)
+
+        paint.color = Color.YELLOW
+        canvas.drawCircle(200f, birdY, birdRadius, paint)
+
+        paint.color = Color.GREEN
+        for (tower in towers) {
+            canvas.drawRect(tower.getTopRect(), paint)
+            canvas.drawRect(tower.getBottomRect(), paint)
+        }
+
+        paint.color = Color.BLACK
+        paint.textSize = 60f
+        canvas.drawText("Score: $score", 50f, 100f, paint)
+        canvas.drawText("Time: $timeElapsed s", 50f, 180f, paint)
+    }
+}
+
+class GameThread(private val surfaceHolder: SurfaceHolder, private val gameView: GameView) : Thread() {
+    var running = false
+
+    override fun run() {
+        while (running) {
+            val canvas: Canvas? = surfaceHolder.lockCanvas()
+            if (canvas != null) {
+                synchronized(surfaceHolder) {
+                    gameView.update()
+                    gameView.draw(canvas)
+                }
+                surfaceHolder.unlockCanvasAndPost(canvas)
+            }
+            sleep(16)
+        }
+    }
+}
+
+class Tower(var x: Float, screenHeight: Float, val width: Float, val gap: Float) {
+    private val openingY = Random.nextFloat() * (screenHeight - gap - 200f) + 100f
+
+    fun getTopRect(): RectF {
+        return RectF(x, 0f, x + width, openingY)
+    }
+
+    fun getBottomRect(): RectF {
+        return RectF(x, openingY + gap, x + width, 2000f)
+    }
+}
