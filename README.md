@@ -1,1 +1,2 @@
-# icetask5
+How to run:
+To run this game in Android Studio, first clone the repository and open the project folder in Android Studio, then let Gradle sync automatically. Make sure your activity_main.xml hosts the GameView custom view and your MainActivity sets setContentView(R.layout.activity_main). Connect an Android device (with USB debugging enabled) or launch an emulator, then click the ▶️ Run button; the app will build and install, and you’ll see the bird falling under gravity with towers scrolling in—tap the screen to make the bird flap and start playing.
